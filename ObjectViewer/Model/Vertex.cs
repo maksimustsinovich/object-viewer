@@ -15,6 +15,8 @@ public class Vertex
     }
 
     public Vector4 Vector { get; set; }
+
+    public Vector3 Normal { get; set; }
     
     public float X => Vector.X;
     

@@ -1,4 +1,6 @@
-﻿namespace ObjectViewer.Model;
+﻿using System.Numerics;
+
+namespace ObjectViewer.Model;
 
 public class WavefrontObject
 {
@@ -9,4 +11,6 @@ public class WavefrontObject
     public VertexNormal[] VertexNormals { get; set; } = [];
     
     public Face[] Faces { get; set; } = [];
+
+    public Vector3[] WorldCords { get; set; } = [];
 }

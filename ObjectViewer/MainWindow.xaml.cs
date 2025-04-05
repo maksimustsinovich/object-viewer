@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using ObjectViewer.Enum;
 using ObjectViewer.Model;
@@ -50,6 +51,12 @@ public partial class MainWindow
     
     private RenderType _renderType = RenderType.Lambert;
     
+    private readonly DispatcherTimer _rotationTimer;
+    
+    private bool _isAutoRotating;
+    
+    private float _rotationSpeed = 0.25f;
+    
     private static float CalculateModelSize(WavefrontObject wavefrontObject)
     {
         if (wavefrontObject.Vertices.Length == 0)
@@ -69,6 +76,13 @@ public partial class MainWindow
         return (sizeX + sizeY + sizeZ) / 3.0f;
     }
 
+    private bool _isSmoothing = false;
+
+    private void ToggleSmoothing()
+    {
+        _isSmoothing = !_isSmoothing;
+    }
+    
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var settingsWindow = new SettingsWindow(_backgroundColor, _gridColor, _modelColor, _renderType);
@@ -102,6 +116,30 @@ public partial class MainWindow
         
         KeyDown += MainWindow_KeyDown;
         KeyUp += MainWindow_KeyUp;
+        
+        _rotationTimer = new DispatcherTimer();
+        _rotationTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 60); 
+        _rotationTimer.Tick += RotationTimer_Tick;
+    }
+    
+    private void ToggleAutoRotation()
+    {
+        if (_isAutoRotating)
+        {
+            _rotationTimer.Stop();
+            _isAutoRotating = false;
+        }
+        else
+        {
+            _rotationTimer.Start();
+            _isAutoRotating = true;
+        }
+    }
+    
+    private void RotationTimer_Tick(object? sender, EventArgs e)
+    {
+        _rotation.Y += _rotationSpeed;
+        RedrawModel(); 
     }
     
     private void MainWindow_KeyDown(object sender, KeyEventArgs e)
@@ -135,6 +173,17 @@ public partial class MainWindow
 
             case Key.Down:
                 _translation.Z += _translationSpeed;
+                break;
+            
+            case Key.R:
+                ToggleAutoRotation();
+                break;
+            
+            case Key.X: 
+                _rotationSpeed += 0.25f;
+                break;
+            case Key.Z: 
+                _rotationSpeed = Math.Max(0.05f, _rotationSpeed - 0.25f);
                 break;
         }
 
@@ -233,15 +282,29 @@ public partial class MainWindow
                 width, height
             );
 
+            var lightingModel = new PhongLightingModel(
+                ambientCoefficient: 0.1f,
+                diffuseCoefficient: 0.8f,
+                specularCoefficient: 0.5f,
+                shininess: 32.0f,
+                ambientColor: Color.Gray,
+                diffuseColor: _modelColor,
+                specularColor: Color.White);
+            
             switch (_renderType)
             {
                 case RenderType.Wireframe:
                     WavefrontObjectWireframeRenderer.DrawWireframe(wavefrontObject, _writeableBitmap, _modelColor);
                     break;
                 case RenderType.Lambert:
-                    WavefrontObjectTriangleRenderer.DrawFilledTriangles(wavefrontObject, _writeableBitmap, _modelColor);
+                    WavefrontObjectTriangleRenderer.DrawFilledTriangles(wavefrontObject, _writeableBitmap, _modelColor, _eye);
                     break;
+                case RenderType.Phong:
+                    WavefrontObjectPhongInterpolationRenderer.DrawFilledTriangles(wavefrontObject, _writeableBitmap, lightingModel, _eye);
+                    break;
+                
             }
+
         }
         catch (Exception ex)
         {

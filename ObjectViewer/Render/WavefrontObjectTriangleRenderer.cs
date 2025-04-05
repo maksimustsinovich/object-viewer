@@ -9,9 +9,9 @@ namespace ObjectViewer.Render;
 public abstract class WavefrontObjectTriangleRenderer : WavefrontObjectBaseRenderer
 {
     public static void DrawFilledTriangles(WavefrontObject wavefrontObject, WriteableBitmap writeableBitmap,
-        Color color)
+        Color color, Vector3 eye)
     {
-        var lightDirection = Vector3.Normalize(new Vector3(0, 0, -1));
+        var lightDirection = Vector3.Normalize(eye);
 
         var width = writeableBitmap.PixelWidth;
         var height = writeableBitmap.PixelHeight;
@@ -50,25 +50,25 @@ public abstract class WavefrontObjectTriangleRenderer : WavefrontObjectBaseRende
                                          wavefrontObject.VertexNormals.Length > face.Items[i].VertexNormal;
 
                         Vector3 normal;
-                        if (hasNormals)
-                        {
-                            var n1 = wavefrontObject.VertexNormals[face.Items[i].VertexNormal].Vector;
-                            var n2 = wavefrontObject.VertexNormals[face.Items[(i + 1) % count].VertexNormal].Vector;
-                            var n3 = wavefrontObject.VertexNormals[face.Items[(i + 2) % count].VertexNormal].Vector;
+                        //if (hasNormals)
+                        //{
+                            //var n1 = wavefrontObject.VertexNormals[face.Items[i].VertexNormal].Vector;
+                            //var n2 = wavefrontObject.VertexNormals[face.Items[(i + 1) % count].VertexNormal].Vector;
+                            //var n3 = wavefrontObject.VertexNormals[face.Items[(i + 2) % count].VertexNormal].Vector;
 
-                            normal = (n1 + n2 + n3) / 3;
-                        }
-                        else
-                        {
+                            //normal = (n1 + n2 + n3);
+                        //}
+                        //else
+                        //{
                             normal = ComputeNormal(
-                                new Vector3(v1.Vector.X, v1.Vector.Y, v1.Vector.Z),
-                                new Vector3(v2.Vector.X, v2.Vector.Y, v2.Vector.Z),
-                                new Vector3(v3.Vector.X, v3.Vector.Y, v3.Vector.Z));
-                        }
+                                wavefrontObject.WorldCords[i1],
+                                wavefrontObject.WorldCords[i2],
+                                wavefrontObject.WorldCords[i3]);
+                        //}
 
                         normal = Vector3.Normalize(normal);
 
-                        var viewDirection = new Vector3(0, 0, -1);
+                        var viewDirection = eye - wavefrontObject.WorldCords[i1];
                         if (!IsVisible(normal, viewDirection))
                         {
                             continue;
@@ -134,6 +134,7 @@ public abstract class WavefrontObjectTriangleRenderer : WavefrontObjectBaseRende
         if (y2 > y3)
         {
             Swap(ref x2, ref x3);
+
             Swap(ref y2, ref y3);
             Swap(ref z2, ref z3);
         }
@@ -203,7 +204,7 @@ public abstract class WavefrontObjectTriangleRenderer : WavefrontObjectBaseRende
         }
     }
 
-    private static float[] CreateZBuffer(int width, int height)
+    protected static float[] CreateZBuffer(int width, int height)
     {
         var zBuffer = new float[width * height];
         for (var i = 0; i < zBuffer.Length; i++)
@@ -214,17 +215,14 @@ public abstract class WavefrontObjectTriangleRenderer : WavefrontObjectBaseRende
         return zBuffer;
     }
 
-    private static Vector3 ComputeNormal(Vector3 v1, Vector3 v2, Vector3 v3)
+    protected static Vector3 ComputeNormal(Vector3 v1, Vector3 v2, Vector3 v3)
     {
         var edge1 = v2 - v1;
         var edge2 = v3 - v1;
-        
-        var vectorCross = Vector3.Cross(edge1, edge2);
-        
-        return Vector3.Normalize(-vectorCross);
+        return Vector3.Normalize(- Vector3.Cross(edge1, edge2));
     }
 
-    private static bool IsVisible(Vector3 normal, Vector3 viewDirection)
+    protected static bool IsVisible(Vector3 normal, Vector3 viewDirection)
     {
         return Vector3.Dot(normal, viewDirection) < 0;
     }

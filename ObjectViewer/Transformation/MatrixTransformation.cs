@@ -38,14 +38,15 @@ public static class MatrixTransformation
 
     public static Matrix4x4 CreateProjectionMatrix(float width, float height, float zNear, float zFar)
     {
-        var orthographic = new Matrix4x4(
-            2 / width, 0, 0, 0,
-            0, 2 / height, 0, 0,
-            0, 0, 1 / (zNear - zFar), zNear / (zNear - zFar),
-            0, 0, 0, 1
-        );
-        
-        orthographic = Matrix4x4.Transpose(orthographic);
+        //var orthographic = new Matrix4x4(
+        //    2 * zNear / width, 0, 0, 0,
+        //    0, 2 * zNear / height, 0, 0,
+        //    0, 0, zFar / (zNear - zFar), zNear * zFar / (zNear - zFar),
+        //    0, 0, -1, 0
+        //);
+
+        var orthographic = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2, width / height, zNear, zFar);
+            //Matrix4x4.Transpose(orthographic);
         
         return orthographic;
     }

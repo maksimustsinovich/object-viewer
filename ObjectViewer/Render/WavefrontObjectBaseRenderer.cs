@@ -15,51 +15,57 @@ public abstract class WavefrontObjectBaseRenderer
     Vector3 eye, Vector3 target, Vector3 up,
     float zNear, float zFar,
     float width, float height)
-{
-    var newWavefrontObject = new WavefrontObject
     {
-        VertexTextures = wavefrontObject.VertexTextures,
-        Faces = wavefrontObject.Faces
-    };
+        var newWavefrontObject = new WavefrontObject
+        {
+            VertexTextures = wavefrontObject.VertexTextures,
+            Faces = wavefrontObject.Faces
+        };
 
-    var worldMatrix = MatrixTransformation.CreateWorldMatrix(translation, rotation, scale);
-    var viewMatrix = MatrixTransformation.CreateViewMatrix(eye, target, up);
-    var projectionMatrix = MatrixTransformation.CreateProjectionMatrix(width, height, zNear, zFar);
-    var viewportMatrix = MatrixTransformation.CreateViewportMatrix(width, height);
+        var worldMatrix = MatrixTransformation.CreateWorldMatrix(translation, rotation, scale);
+        var viewMatrix = MatrixTransformation.CreateViewMatrix(eye, target, up);
+        var projectionMatrix = MatrixTransformation.CreateProjectionMatrix(width, height, zNear, zFar);
+        var viewportMatrix = MatrixTransformation.CreateViewportMatrix(width, height);
 
-    var finalMatrix = worldMatrix * viewMatrix * projectionMatrix * viewportMatrix;
+        var finalMatrix = worldMatrix * viewMatrix * projectionMatrix * viewportMatrix;
 
-    if (!Matrix4x4.Invert(worldMatrix * viewMatrix, out var invertedWorldMatrix))
-    {
-        throw new InvalidOperationException("Matrix inversion failed for normal matrix calculation.");
+        if (!Matrix4x4.Invert(worldMatrix * viewMatrix, out var invertedWorldMatrix))
+        {
+            throw new InvalidOperationException("Matrix inversion failed for normal matrix calculation.");
+        }
+        var normalMatrix = Matrix4x4.Transpose(invertedWorldMatrix);
+
+        var oldVertices = wavefrontObject.Vertices;
+        var newVertices = new Vertex[oldVertices.Length];
+
+        var worldCords = new Vector3[oldVertices.Length];
+        for (var i = 0; i < oldVertices.Length; i++)
+        {
+            var v = Vector4.Transform(oldVertices[i].Vector, finalMatrix);
+            v = v / v.W;
+            newVertices[i] = new Vertex(v);
+
+            worldCords[i] = Vector4.Transform(oldVertices[i].Vector, worldMatrix).AsVector3();
+        }
+        newWavefrontObject.Vertices = newVertices;
+        newWavefrontObject.WorldCords = worldCords;
+
+        var oldNormals = wavefrontObject.VertexNormals;
+        var newNormals = new VertexNormal[oldNormals.Length];
+        for (var i = 0; i < oldNormals.Length; i++)
+        {
+            var normal = oldNormals[i].Vector;
+
+            var transformedNormal = Vector3.Transform(normal, normalMatrix);
+
+            transformedNormal = Vector3.Normalize(transformedNormal);
+
+            newNormals[i] = new VertexNormal(transformedNormal);
+        }
+        newWavefrontObject.VertexNormals = newNormals;
+
+        return newWavefrontObject;
     }
-    var normalMatrix = Matrix4x4.Transpose(invertedWorldMatrix);
-
-    var oldVertices = wavefrontObject.Vertices;
-    var newVertices = new Vertex[oldVertices.Length];
-    for (var i = 0; i < oldVertices.Length; i++)
-    {
-        var v = Vector4.Transform(oldVertices[i].Vector, finalMatrix);
-        newVertices[i] = new Vertex(v);
-    }
-    newWavefrontObject.Vertices = newVertices;
-
-    var oldNormals = wavefrontObject.VertexNormals;
-    var newNormals = new VertexNormal[oldNormals.Length];
-    for (var i = 0; i < oldNormals.Length; i++)
-    {
-        var normal = oldNormals[i].Vector;
-
-        var transformedNormal = Vector3.Transform(normal, normalMatrix);
-
-        transformedNormal = Vector3.Normalize(transformedNormal);
-        
-        newNormals[i] = new VertexNormal(transformedNormal);
-    }
-    newWavefrontObject.VertexNormals = newNormals;
-
-    return newWavefrontObject;
-}
 
     public static void DrawBackground(WriteableBitmap bitmap, Color backgroundColor, Color gridColor)
     {
